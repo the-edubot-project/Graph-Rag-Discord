@@ -131,7 +131,7 @@ class DiscordSummaryStatus(Base):
 
 
 
-class DiscordChunkSummary(Base):
+class DiscordChunkEmbeddings(Base):
     __tablename__ ="discord_chunk_embeddings"
 
     id = Column(Integer, primary_key=True, autoincrement=True)

@@ -42,7 +42,7 @@ PERCENTILES = [0.10, 0.25, 0.50, 0.75, 0.90, 0.95, 0.99]
 
 
 def main():
-    engine = create_engine(settings.DB_DISCORD_CONN_STRING)
+    engine = create_engine(settings.THE_EDUBOT_DB_CONN_STRING)
 
     print("[stats] Consultando mensajes agrupados por canal y semana...")
     df = pd.read_sql(QUERY, engine)
