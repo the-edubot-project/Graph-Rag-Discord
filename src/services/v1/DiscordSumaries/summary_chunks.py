@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from src import discord_models as models
 from datetime import datetime
 from langchain_core.language_models.chat_models import BaseChatModel
-from .prompts import SUMMARY_DISCORD_MESSAGES_1
+from .prompts import SUMMARY_DISCORD_MESSAGES_2
 from .format_db_messages import format_db_messageses
 
 from sqlalchemy.orm import Session
@@ -63,7 +63,7 @@ def collect_all_pending_summaries(session: Session) -> List[str]:
     for obj in summary_records:
         messages = format_db_messageses(session, channel_id=obj.channel_id, summary_from=obj.start_time, summary_end=obj.end_time)
         if messages:
-            prompt = SUMMARY_DISCORD_MESSAGES_1.format(messages=messages)
+            prompt = SUMMARY_DISCORD_MESSAGES_2.format(messages=messages)
             all_tasks.append({"prompt": prompt, "idx": obj.id})
         
     return all_tasks
@@ -74,7 +74,7 @@ def collect_all_pending_summaries(session: Session) -> List[str]:
 
 
 
-async def make_all_pending_summaries(session : Session, semaphore : asyncio.Semaphore, llm : BaseChatModel):
+async def make_all_pending_summaries(session : Session, semaphore : asyncio.Semaphore, llm : BaseChatModel, llm_model : str):
     logger.info("make_all_pending_summaries")
     prompts = collect_all_pending_summaries(session=session)
 
@@ -125,6 +125,7 @@ async def make_all_pending_summaries(session : Session, semaphore : asyncio.Sema
 
                     db_record.input_tokens = input_tokens
                     db_record.output_tokens = output_tokens
+                    db_record.model = llm_model
 
                 session.add(db_record)
                 session.commit()
@@ -142,7 +143,24 @@ async def make_all_pending_summaries(session : Session, semaphore : asyncio.Sema
 if __name__ == "__main__":
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
+    from langchain_deepseek import ChatDeepSeek
+    from src import settings
+    import asyncio
+
+    engine = create_engine(settings.THE_EDUBOT_DB_CONN_STRING)
+    MySession = sessionmaker(bind=engine)
+    session = MySession()
+
+    semaphore = asyncio.Semaphore(4)
     
+    model = "deepseek-v4-flash"
+    llm = ChatDeepSeek(model=model, temperature=0.3, api_key=settings.DEEPSEEK_API_KEY)
+
+
+    asyncio.run(
+        make_all_pending_summaries(session=session,semaphore=semaphore, llm=llm, llm_model=model)
+    )
+
     
 
 

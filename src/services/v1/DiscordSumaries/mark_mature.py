@@ -100,7 +100,7 @@ if __name__ == "__main__":
 
     setup_base_logging()
 
-    engine = create_engine(settings.DB_DISCORD_CONN_STRING)
+    engine = create_engine(settings.THE_EDUBOT_DB_CONN_STRING)
     SessionLocal = sessionmaker(bind=engine)
     session = SessionLocal()
 
