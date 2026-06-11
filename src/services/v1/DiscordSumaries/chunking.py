@@ -228,8 +228,37 @@ def _persist(
             reopen_record.status = False  # sigue siendo "vivo" → re-evaluable por seed_mature_status
             reopen_record.alerts_done = False  # contenido cambió → re-extraer alertas
             session.add(reopen_record)
+
+            # El contenido del chunk cambió → lo ya ingerido downstream quedó obsoleto.
+            # Reseteamos los estados de discord_summary_state a NULL (= pendiente de
+            # re-procesar), análogo a summary=None / alerts_done=False.
+            state = (
+                session.query(models.DiscordSummaryStatus)
+                .filter(models.DiscordSummaryStatus.summary_id == reopen_record.id)
+                .first()
+            )
+            if state is not None:
+                state.lightrag_status = None
+                state.naive_rag_status = None
+                state.graphiti_status = None
+                session.add(state)
+            else:
+                # Defensivo: si por algún motivo no existe la fila de estado, la creamos.
+                session.add(models.DiscordSummaryStatus(summary_id=reopen_record.id))
+
+            # Defensivo: aunque LightRAG solo debería ingerir chunks maduros, si por
+            # algún motivo este chunk vivo ya tenía docs en LightRAG, su contenido
+            # cambió → marcarlos para purgar y re-ingerir.
+            session.query(models.LightRagDocs).filter_by(
+                summary_id=reopen_record.id
+            ).update(
+                {models.LightRagDocs.pending_deletion: True},
+                synchronize_session=False,
+            )
+
             logger.info(
-                "[%s] Chunk vivo reabierto (id=%s) → %s→%s, %s msgs (~%s tokens). summary=None",
+                "[%s] Chunk vivo reabierto (id=%s) → %s→%s, %s msgs (~%s tokens). "
+                "summary=None, estados downstream → NULL",
                 channel_id, reopen_record.id, first["start_time"], first["end_time"],
                 first["number_messages"], first["approx_tokens"],
             )
@@ -243,19 +272,24 @@ def _persist(
         rest = chunks
 
     for c in rest:
-        session.add(
-            models.DiscordChannelChronologicalSummary(
-                channel_id=channel_id,
-                start_time=c["start_time"],
-                end_time=c["end_time"],
-                number_messages=c["number_messages"],
-                summary=None,
-                status=False,
-            )
+        summary = models.DiscordChannelChronologicalSummary(
+            channel_id=channel_id,
+            start_time=c["start_time"],
+            end_time=c["end_time"],
+            number_messages=c["number_messages"],
+            summary=None,
+            status=False,
         )
+        session.add(summary)
+        # Necesitamos el id autoincremental para enlazar el estado downstream.
+        session.flush()
+        # Estado downstream del chunk recién creado: aún no ingerido en ningún
+        # backend → todos los estados arrancan en NULL (pendiente).
+        session.add(models.DiscordSummaryStatus(summary_id=summary.id))
         logger.debug(
-            "[%s] Nuevo chunk: %s→%s, %s msgs (~%s tokens)",
-            channel_id, c["start_time"], c["end_time"], c["number_messages"], c["approx_tokens"],
+            "[%s] Nuevo chunk: %s→%s, %s msgs (~%s tokens), estado creado (summary_id=%s)",
+            channel_id, c["start_time"], c["end_time"], c["number_messages"],
+            c["approx_tokens"], summary.id,
         )
 
     session.commit()
@@ -381,18 +415,13 @@ if __name__ == "__main__":
 
     setup_base_logging()
 
-    engine = create_engine(settings.DB_DISCORD_CONN_STRING)
+    engine = create_engine(settings.THE_EDUBOT_DB_CONN_STRING)
     SessionLocal = sessionmaker(bind=engine)
     session = SessionLocal()
 
-    # try:
-    #     for root_id in conf.ROOT_IDS:
-    #         logger.info("──── Procesando raíz %s ────", root_id)
-    #         rechunk_channel_recursive(session, root_id)
-    # finally:
-    #     session.close()
 
     rechunk_all_available_channels(session=session)
+    session.close()
 
 
 
