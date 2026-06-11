@@ -4,6 +4,7 @@ from langchain_core.embeddings.embeddings import Embeddings
 #from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_text_splitters.base import TextSplitter
 #from langchain_core.documents.base import Document
+from tokenizers import Tokenizer
 from src.logging_config import get_logger
 import time
 
@@ -11,7 +12,25 @@ import time
 
 logger = get_logger(module_name="make_text_embeddings", DIR="NaiveRag")
 
-def make_text_embeddings(session : Session, embedding : Embeddings, embedding_model : str, text_spliter : TextSplitter | None = None):
+
+def _approx_tokens(text: str, tokenizer: Tokenizer | None) -> int:
+    """Tokens aproximados del texto.
+
+    Si se pasa un tokenizer (huggingface `tokenizers.Tokenizer`), usa su conteo real;
+    si no, cae a la heurística ~1 token cada 4 caracteres.
+    """
+    if tokenizer is not None:
+        return len(tokenizer.encode(text).ids)
+    return len(text) // 4
+
+
+def make_text_embeddings(
+    session: Session,
+    embedding: Embeddings,
+    embedding_model: str,
+    text_spliter: TextSplitter | None = None,
+    tokenizer: Tokenizer | None = None,
+):
 
     # Chunks pendientes de (re)embeber: naive_rag_status IS NULL (lo pone chunking.py /
     # force_merge.py cuando el contenido del chunk cambia, o arranca NULL en chunks
@@ -56,7 +75,7 @@ def make_text_embeddings(session : Session, embedding : Embeddings, embedding_mo
                 vectors = embedding.embed_documents(chunks)
 
                 for n, c in enumerate(chunks):
-                    aprox_tokens = len(c) // 4
+                    aprox_tokens = _approx_tokens(c, tokenizer)
                     if aprox_tokens <= 5:
                         logger.warning(f"La cantidad de tokens de un sub chunk de un chunk con id {r.summary_id} es muy baja")
                     embedding_record = models.DiscordChunkEmbeddings(
@@ -70,7 +89,7 @@ def make_text_embeddings(session : Session, embedding : Embeddings, embedding_mo
             else:
                 # En este caso no se sub chunkeniza el chunk, se embebe completamente
                 text =  r.summary
-                aprox_tokens = len(text) // 4
+                aprox_tokens = _approx_tokens(text, tokenizer)
                 if aprox_tokens <= 5:
                     logger.warning(f"La cantidad de tokens de un sub chunk de un chunk con id {r.summary_id} es muy baja")
                 vector = embedding.embed_query(text)
@@ -111,7 +130,18 @@ if __name__ == "__main__":
     model = "models/gemini-embedding-2"
     embedding = GoogleGenerativeAIEmbeddings(model=model, google_api_key=settings.GOOGLE_API_KEY)
 
-    make_text_embeddings(session=session, embedding=embedding, embedding_model=model)
+    # Tokenizer de Gemma (misma familia SentencePiece que Gemini, vocab 256k) como
+    # mejor proxy para contar tokens que la heurística chars/4.
+    # Usamos el mirror de unsloth porque NO es gated (carga sin login). El oficial
+    # "google/gemma-2-2b" es idéntico pero requiere aceptar licencia + huggingface-cli login.
+    tokenizer = Tokenizer.from_pretrained("unsloth/gemma-2-2b")
+
+    make_text_embeddings(
+        session=session,
+        embedding=embedding,
+        embedding_model=model,
+        tokenizer=tokenizer,
+    )
 
 
 
