@@ -129,7 +129,6 @@ if __name__ == "__main__":
 
     model = "models/gemini-embedding-2"
     embedding = GoogleGenerativeAIEmbeddings(model=model, google_api_key=settings.GOOGLE_API_KEY)
-
     # Tokenizer de Gemma (misma familia SentencePiece que Gemini, vocab 256k) como
     # mejor proxy para contar tokens que la heurística chars/4.
     # Usamos el mirror de unsloth porque NO es gated (carga sin login). El oficial
