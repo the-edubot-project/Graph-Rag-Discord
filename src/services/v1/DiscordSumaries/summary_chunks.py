@@ -32,6 +32,7 @@ async def process_single_chunk(llm : BaseChatModel, llm_model : str, prompt : st
         try:
             ai_message = await llm.ainvoke(prompt)
             #print(f"usage_metadata: {ai_message.usage_metadata}, \n\n numero de caracteres: {len(ai_message.content)} \n\n\n")
+            logger.info(f"input tokens: {ai_message.usage_metadata.get("input_tokens")} | output tokens: {ai_message.usage_metadata.get("output_tokens")}")
             return {"summary": ai_message.content, "usage_metadata":ai_message.usage_metadata, "idx":idx, "llm_model":llm_model}
         except Exception as e:
             logger.error(f"error procesando en el registro {idx} de DiscordChannelChronologicalSummary: \n {e} \n\n")
@@ -87,6 +88,7 @@ async def make_all_pending_summaries(session : Session, semaphore : asyncio.Sema
     tasks = [
         process_single_chunk(
             llm=llm,
+            llm_model=llm_model,
             prompt=p["prompt"],
             idx=p["idx"],
             semaphore=semaphore,
@@ -123,8 +125,8 @@ async def make_all_pending_summaries(session : Session, semaphore : asyncio.Sema
                     input_tokens += meta.get("input_tokens", 0)
                     output_tokens += meta.get("output_tokens", 0)
 
-                    db_record.input_tokens = input_tokens
-                    db_record.output_tokens = output_tokens
+                    db_record.input_tokens = meta.get("input_tokens", 0)
+                    db_record.output_tokens = meta.get("output_tokens", 0)
                     db_record.model = llm_model
 
                 session.add(db_record)
@@ -164,4 +166,8 @@ if __name__ == "__main__":
     
 
 
+"""
+python3 -m src.services.v1.DiscordSumaries.summary_chunks
 
+
+"""

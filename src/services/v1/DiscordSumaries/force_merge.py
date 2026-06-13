@@ -132,12 +132,16 @@ def force_merge_with_previous(session: Session, chunk_id: int) -> bool:
     )
 
     # X desaparece: su fila de estado debe borrarse (FK sin ON DELETE CASCADE).
+    # No hay relationship() ORM entre DiscordSummaryStatus y la tabla de chunks, así que
+    # el unit-of-work no sabe ordenar estos dos DELETE por la FK. Hacemos flush() para
+    # garantizar que el DELETE de x_state se emita ANTES que el de x.
     x_state = (
         session.query(models.DiscordSummaryStatus)
         .filter_by(summary_id=x.id).first()
     )
     if x_state is not None:
         session.delete(x_state)
+        session.flush()
 
     session.delete(x)  # ON DELETE CASCADE borra las alertas de X (se recalcularán en Y)
     session.commit()
@@ -162,10 +166,14 @@ if __name__ == "__main__":
     engine = create_engine(settings.THE_EDUBOT_DB_CONN_STRING)
     SessionLocal = sessionmaker(bind=engine)
     session = SessionLocal()
-    try:
-        force_merge_with_previous(session, 5162)
-    finally:
-        session.close()
+    
+    summary_records = session.query(models.DiscordChannelChronologicalSummary).filter(
+        models.DiscordChannelChronologicalSummary.status == False,
+        models.DiscordChannelChronologicalSummary.number_messages <= 5
+    ).all()
+
+    for r in summary_records:
+        force_merge_with_previous(session=session, chunk_id=r.id)
 
 
 
