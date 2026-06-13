@@ -1,7 +1,7 @@
 from lightrag import LightRAG
 from lightrag.utils import EmbeddingFunc
 from lightrag.llm.gemini import gemini_embed
-from lightrag.llm.openai import openai_model_complete
+from lightrag.llm.openai import openai_complete
 from . import conf
 import settings
 import os
@@ -34,7 +34,7 @@ async def _get_rag() -> LightRAG:
         )
         _rag = LightRAG(
             working_dir=str(settings.ROOT / "data" / "rag_storage"),
-            llm_model_func=openai_model_complete,
+            llm_model_func=openai_complete,
             llm_model_name=conf.LLM_MODEL,
             llm_model_kwargs={
                 "base_url": conf.VLLM_BASE_URL,
