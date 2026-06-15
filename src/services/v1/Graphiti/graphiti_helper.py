@@ -12,7 +12,6 @@ quedan anclados a la ventana temporal del resumen y se pueden filtrar por fecha
 en la recuperación (ver search_in_window).
 """
 
-import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -31,12 +30,6 @@ from src import discord_models as dmodels
 from . import conf
 
 logger = get_logger(module_name="graphiti_helper", DIR="Graphiti")
-
-
-# Namespace estable para derivar UUIDs deterministas de episodio a partir del
-# summary_id. Reinsertar el mismo resumen reutiliza el mismo UUID en vez de
-# crear un episodio duplicado.
-_EPISODE_NS = uuid.uuid5(uuid.NAMESPACE_URL, "discord-chronological-summary")
 
 
 def _as_utc(dt: datetime) -> datetime:
@@ -115,7 +108,6 @@ async def insert_to_graphiti(
     ref_time = _as_utc(start_time)
     end_utc = _as_utc(end_time)
 
-    episode_uuid = str(uuid.uuid5(_EPISODE_NS, str(summary_id)))
     name = f"discord-summary-{summary_id}"
     source_description = (
         f"Resumen cronológico de #{channel_record.name} "
@@ -134,6 +126,10 @@ async def insert_to_graphiti(
         summary_id, channel_record.name, group_id,
     )
 
+    # No pasamos uuid: en add_episode el parámetro uuid es para ACTUALIZAR un
+    # episodio ya existente (hace get_by_uuid y falla si no existe). Para crear
+    # uno nuevo dejamos que Graphiti genere el uuid. La idempotencia la da la
+    # columna graphiti_status (solo se procesan filas 'ready', luego 'in_graphiti').
     await graphiti.add_episode(
         name=name,
         episode_body=summary,
@@ -141,7 +137,6 @@ async def insert_to_graphiti(
         source_description=source_description,
         reference_time=ref_time,
         group_id=group_id,
-        uuid=episode_uuid,
         previous_episode_uuids=previous_uuids,
     )
 
@@ -156,7 +151,7 @@ async def insert_to_graphiti(
         session.add(status_record)
         session.commit()
 
-    logger.info("Ingerido en Graphiti: summary_id=%s episode_uuid=%s", summary_id, episode_uuid)
+    logger.info("Ingerido en Graphiti: summary_id=%s", summary_id)
 
 
 async def search_in_window(
