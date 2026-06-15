@@ -1,0 +1,21 @@
+.git/
+.gitignore
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Secretos: se inyectan en runtime vía env_file, no se hornean en la imagen.
+.env
+.envrc
+
+# Logs y datos locales
+.logs2/
+.logs/
+dataanalysis/
+*.md
