@@ -38,6 +38,7 @@ async def _get_graphiti() -> Graphiti:
         llm_client = OpenAIGenericClient(
             config=llm_config,
             structured_output_mode=conf.STRUCTURED_OUTPUT_MODE,
+            max_tokens=conf.LLM_MAX_TOKENS,
         )
 
         embedder = GeminiEmbedder(

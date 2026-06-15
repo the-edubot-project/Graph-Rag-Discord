@@ -10,6 +10,15 @@ GOOGLE_API_KEY = settings.GOOGLE_API_KEY
 EMBED_MODEL = "gemini-embedding-001"
 EMBED_DIM = 1536
 
+# Tope de tokens de SALIDA por llamada al LLM.
+# OJO: esto NO recorta lo que Graphiti procesa. El resumen y el contexto viajan
+# en el PROMPT (la entrada); max_tokens solo limita el largo de la RESPUESTA
+# generada. Por defecto OpenAIGenericClient pide 16384 de salida, lo que sumado
+# a prompts grandes (la dedup puede mandar ~16K tokens) supera la ventana de
+# 32768 -> vLLM responde 400. Para extracción/dedup la respuesta es una lista de
+# entidades o un mapeo JSON corto, así que 4096 sobra y deja ~28K para el prompt.
+LLM_MAX_TOKENS = 4096
+
 # Modo de salida estructurada del LLM:
 #   - "json_schema": decodificación guiada nativa (ideal si tu vLLM soporta
 #     guided_json / outlines). Da extracciones más fiables.
