@@ -26,6 +26,24 @@ LLM_MAX_TOKENS = 4096
 # Si la ingesta falla por errores de parseo JSON, cambia a "json_object".
 STRUCTURED_OUTPUT_MODE = "json_schema"
 
+# Nº de CANALES que se ingieren en paralelo. Dentro de cada canal los episodios
+# van secuenciales y en orden cronológico (la dedup y previous_episode_uuids lo
+# exigen); el paralelismo es ENTRE canales distintos, que es seguro porque
+# Graphiti deduplica entidades por group_id.
+#
+# vLLM es UNA instancia con continuous batching (--max-num-seqs 16): atiende
+# varias peticiones a la vez sin abrir más procesos ni cargar más modelos, así
+# que 3-6 es un punto seguro en local. Con DeepSeek u otra API OpenAI-compatible
+# el límite pasa a ser el rate limit de la API: ahí puedes subirlo bastante.
+CONCURRENCY = 3
+
+# Reintentos ante errores TRANSITORIOS de las APIs (503/429/5xx, timeouts) del
+# LLM o del embedder Gemini. Se reintenta el episodio completo EN SITIO (preserva
+# el orden cronológico del canal) con backoff exponencial; agotados los intentos
+# el chunk se marca fallido y se reintenta en la próxima ejecución.
+MAX_RETRIES = 4
+RETRY_BACKOFF = 2.0  # segundos base; espera = RETRY_BACKOFF * 2**(intento-1)
+
 # Particionamos el grafo por canal de Discord usando el group_id de Graphiti.
 # Esto permite acotar búsquedas a un canal concreto y mantiene la continuidad
 # temporal de episodios por canal.
