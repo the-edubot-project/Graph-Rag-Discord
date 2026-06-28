@@ -14,12 +14,15 @@ usa una base/instancia de Neo4j dedicada para Graphiti.
 
 from graphiti_core import Graphiti
 from graphiti_core.llm_client import LLMConfig
-from graphiti_core.llm_client.openai_generic_client import OpenAIGenericClient
-from graphiti_core.embedder.gemini import GeminiEmbedder, GeminiEmbedderConfig
+from graphiti_core.embedder.gemini import GeminiEmbedderConfig
 from graphiti_core.cross_encoder.openai_reranker_client import OpenAIRerankerClient
 
 from src import settings
 from . import conf
+from .token_tracking import (
+    TokenTrackingOpenAIGenericClient,
+    TokenCountingGeminiEmbedder,
+)
 
 _graphiti: Graphiti | None = None
 
@@ -35,13 +38,16 @@ async def _get_graphiti() -> Graphiti:
             small_model=conf.LLM_MODEL,  # vLLM sirve un solo modelo
         )
 
-        llm_client = OpenAIGenericClient(
+        # Cliente LLM con rastreo de tokens (captura el usage real de vLLM y lo
+        # acumula por episodio vía contextvars; ver token_tracking.py).
+        llm_client = TokenTrackingOpenAIGenericClient(
             config=llm_config,
             structured_output_mode=conf.STRUCTURED_OUTPUT_MODE,
             max_tokens=conf.LLM_MAX_TOKENS,
         )
 
-        embedder = GeminiEmbedder(
+        # Embedder con conteo (aproximado) de tokens del texto embebido.
+        embedder = TokenCountingGeminiEmbedder(
             config=GeminiEmbedderConfig(
                 api_key=conf.GOOGLE_API_KEY,
                 embedding_model=conf.EMBED_MODEL,

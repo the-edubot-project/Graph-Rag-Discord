@@ -244,3 +244,67 @@ class ModelsProvider(Base):
     pricing_output_tokens = Column(Float)
 
 
+
+
+class GraphitiTokenUsage(Base):
+    """Consumo de tokens (LLM y embedding) por cada resumen ingerido en Graphiti.
+
+    Se escriben DOS filas por summary_id procesado:
+      - kind='llm'       -> tokens reales de extracción/dedup (usage de vLLM).
+      - kind='embedding' -> tokens aproximados del texto embebido; output_tokens
+                            siempre 0 (los modelos de embedding no generan salida).
+
+    Los nombres de modelo provienen de conf.LLM_MODEL / conf.EMBED_MODEL
+    (src/services/v1/Graphiti/conf.py). Los tokens del LLM incluyen los reintentos
+    transitorios (= coste real consumido), no solo el intento exitoso.
+    """
+
+    __tablename__ = "graphiti_token_usage"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    summary_id = Column(Integer, nullable=False, index=True)
+    channel_id = Column(BigInteger, index=True)
+    kind = Column(String(16), nullable=False)  # 'llm' | 'embedding'
+    model_name = Column(String(255), nullable=False)
+    input_tokens = Column(Integer, nullable=False, server_default="0")
+    output_tokens = Column(Integer, nullable=False, server_default="0")
+    # Nº de textos enviados a embeber (solo relevante para kind='embedding').
+    embed_calls = Column(Integer)
+    created_at = Column(DateTime, server_default=func.now())
+
+
+
+
+
+
+
+
+class LightragTokenUsage(Base):
+    """Consumo de tokens (LLM y embedding) por cada resumen ingerido en LightRAG.
+
+    Se escriben DOS filas por summary_id procesado:
+      - kind='llm'       -> tokens reales de extracción de entidades/relaciones
+                            (usage devuelto por vLLM, incluye reintentos).
+      - kind='embedding' -> tokens aproximados del texto embebido (contados
+                            localmente con tiktoken); output_tokens siempre 0,
+                            los modelos de embedding no generan salida.
+
+    Los nombres de modelo provienen de conf.LLM_MODEL / conf.EMBED_MODEL
+    (src/services/v1/LightRag/conf.py). Las llamadas servidas desde la caché de
+    LightRAG no consumen tokens nuevos, por lo que se registran como 0.
+    """
+
+    __tablename__ = "lightrag_token_usage"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    summary_id = Column(Integer, nullable=False, index=True)
+    channel_id = Column(BigInteger, index=True)
+    kind = Column(String(16), nullable=False)  # 'llm' | 'embedding'
+    model_name = Column(String(255), nullable=False)
+    input_tokens = Column(Integer, nullable=False, server_default="0")
+    output_tokens = Column(Integer, nullable=False, server_default="0")
+    # Nº de textos enviados a embeber (solo relevante para kind='embedding').
+    embed_calls = Column(Integer)
+    created_at = Column(DateTime, server_default=func.now())
+
+

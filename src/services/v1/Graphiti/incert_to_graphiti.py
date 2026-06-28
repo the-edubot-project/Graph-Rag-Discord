@@ -16,6 +16,7 @@ from src import discord_models as dmodels
 from . import graphiti_helper as gh
 from . import conf
 from .get_graphiti_vllm_googleEmb import _get_graphiti
+from .token_tracking import track_episode, persist_episode_usage
 
 # Activa el handler de consola del root para que los logs salgan también en
 # pantalla (get_logger propaga al root, pero el root no tiene consola hasta que
@@ -148,14 +149,24 @@ async def main_pipeline(session_factory: sessionmaker):
                             n, total, worker_id, channel_id, r.summary_id, r.start_time,
                         )
                         try:
-                            await _insert_with_retry(
-                                graphiti,
+                            # track_episode acumula (vía contextvars) todos los
+                            # tokens LLM/embedding que Graphiti consuma para ESTE
+                            # resumen, aislados de los demás workers concurrentes.
+                            with track_episode() as usage:
+                                await _insert_with_retry(
+                                    graphiti,
+                                    session,
+                                    summary_id=r.summary_id,
+                                    channel_id=r.channel_id,
+                                    start_time=r.start_time,
+                                    end_time=r.end_time,
+                                    summary=r.summary,
+                                )
+                            persist_episode_usage(
                                 session,
                                 summary_id=r.summary_id,
                                 channel_id=r.channel_id,
-                                start_time=r.start_time,
-                                end_time=r.end_time,
-                                summary=r.summary,
+                                usage=usage,
                             )
                             ok_ids.append(r.summary_id)
                         except Exception:
@@ -179,6 +190,16 @@ async def main_pipeline(session_factory: sessionmaker):
         )
 
     finally:
+        # Resumen global de tokens del LLM (acumulado por el tracker de Graphiti).
+        # El detalle por resumen ya quedó persistido en graphiti_token_usage.
+        try:
+            total = graphiti.llm_client.token_tracker.get_total_usage()
+            logger.info(
+                "Tokens LLM totales de la corrida: in=%d out=%d total=%d",
+                total.input_tokens, total.output_tokens, total.total_tokens,
+            )
+        except Exception:
+            logger.exception("No se pudo obtener el resumen global de tokens del LLM")
         await graphiti.close()
 
 

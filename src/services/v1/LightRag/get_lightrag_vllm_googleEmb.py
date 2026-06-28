@@ -1,5 +1,5 @@
 from lightrag import LightRAG
-from lightrag.utils import EmbeddingFunc
+from lightrag.utils import EmbeddingFunc, TokenTracker, TiktokenTokenizer
 from lightrag.llm.gemini import gemini_embed
 from lightrag.llm.openai import openai_complete
 from . import conf
@@ -24,6 +24,30 @@ os.environ["GEMINI_API_KEY"] = settings.GOOGLE_API_KEY
 
 _rag: LightRAG | None = None
 
+# Acumuladores globales de tokens. Se leen por delta (snapshot antes/después de
+# cada inserción) desde incert_to_lightrag.py para atribuir el consumo a cada
+# summary_id. NO se pasan dentro de llm_model_kwargs: LightRAG hace asdict()/
+# deepcopy de esos campos y perdería la referencia al tracker.
+llm_tracker = TokenTracker()
+embed_tracker = TokenTracker()
+
+# La API de embeddings de Gemini no reporta usage de forma fiable, así que los
+# tokens de embedding se cuentan localmente (aproximados) con tiktoken.
+_embed_tokenizer = TiktokenTokenizer()
+
+
+async def _llm_model_func(prompt, **kwargs):
+    # Inyecta el tracker en cada llamada; openai_complete -> openai_complete_if_cache
+    # lo usa para registrar response.usage (prompt/completion/total) de vLLM.
+    kwargs["token_tracker"] = llm_tracker
+    return await openai_complete(prompt, **kwargs)
+
+
+async def _embedding_func(texts, **kwargs):
+    n_tokens = sum(len(_embed_tokenizer.encode(t)) for t in texts)
+    embed_tracker.add_usage({"prompt_tokens": n_tokens, "total_tokens": n_tokens})
+    return await gemini_embed.func(texts, **kwargs)
+
 
 async def _get_rag() -> LightRAG:
     global _rag
@@ -33,11 +57,11 @@ async def _get_rag() -> LightRAG:
             max_token_size=8000,
             model_name=conf.EMBED_MODEL,
             send_dimensions=True,
-            func=gemini_embed.func,
+            func=_embedding_func,
         )
         _rag = LightRAG(
             working_dir=str(settings.ROOT / "data" / "rag_storage"),
-            llm_model_func=openai_complete,
+            llm_model_func=_llm_model_func,
             llm_model_name=conf.LLM_MODEL,
             llm_model_kwargs={
                 "base_url": conf.VLLM_BASE_URL,

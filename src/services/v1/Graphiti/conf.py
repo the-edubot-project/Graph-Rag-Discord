@@ -31,11 +31,18 @@ STRUCTURED_OUTPUT_MODE = "json_schema"
 # exigen); el paralelismo es ENTRE canales distintos, que es seguro porque
 # Graphiti deduplica entidades por group_id.
 #
-# vLLM es UNA instancia con continuous batching (--max-num-seqs 16): atiende
-# varias peticiones a la vez sin abrir más procesos ni cargar más modelos, así
-# que 3-6 es un punto seguro en local. Con DeepSeek u otra API OpenAI-compatible
-# el límite pasa a ser el rate limit de la API: ahí puedes subirlo bastante.
-CONCURRENCY = 3
+# vLLM es UNA instancia con continuous batching: atiende varias peticiones a la
+# vez sin abrir más procesos ni cargar más modelos.
+#
+# OJO: lo bajamos a 1 a propósito. Al subir la ventana de contexto a 49152 (ver
+# vLLM-serving/docker-compose.yaml), cada petición larga consume mucho más
+# KV-cache. Además, CADA add_episode ya dispara internamente varias llamadas LLM
+# en paralelo (extracción/dedup/atributos vía semaphore_gather de graphiti), así
+# que aunque procesemos 1 canal a la vez, vLLM igual recibe ráfagas concurrentes.
+# Con CONCURRENCY>1 esas ráfagas (incluida la de extract_edges, 16384 de salida)
+# saturan el pool y se preempten -> lento e inestable. 1 prioriza fiabilidad.
+# Si tras subir el contexto ves las GPUs infrautilizadas, prueba 2.
+CONCURRENCY = 1
 
 # Reintentos ante errores TRANSITORIOS de las APIs (503/429/5xx, timeouts) del
 # LLM o del embedder Gemini. Se reintenta el episodio completo EN SITIO (preserva

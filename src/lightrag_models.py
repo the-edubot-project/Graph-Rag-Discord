@@ -2,6 +2,7 @@ from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy import (
     Column,
     Integer,
+    BigInteger,
     String,
     DateTime,
     Text,
