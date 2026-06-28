@@ -165,11 +165,20 @@ async def insert_to_light_rag(
             lightrag_track_id=track_id,
         ))
 
-        status_record = session.query(dmodels.DiscordSummaryStatus).filter_by(
-            id=summary_id
-        ).first()
-
+    # Se marca el estado en ambos casos (documento nuevo o re-insertado).
+    status_record = session.query(dmodels.DiscordSummaryStatus).filter_by(
+        summary_id=summary_id
+    ).first()
+    if status_record:
         status_record.lightrag_status = "in_lightrag"
+        session.add(status_record)
+    else:
+        logger.warning(
+            "No se encontró DiscordSummaryStatus para summary_id=%s, no se pudo marcar in_lightrag",
+            summary_id,
+        )
+
+    session.commit()
 
         
         

@@ -3,7 +3,7 @@ from lightrag.utils import EmbeddingFunc
 from lightrag.llm.gemini import gemini_embed
 from lightrag.llm.openai import openai_complete
 from . import conf
-import settings
+from src import settings
 import os
 
 # LightRAG lee credenciales de os.environ, no de variables Python.
@@ -16,6 +16,9 @@ os.environ["POSTGRES_DATABASE"] = settings.DB_NAME
 os.environ["NEO4J_URI"] = settings.NEO4J_URI
 os.environ["NEO4J_USERNAME"] = settings.NEO4J_USERNAME
 os.environ["NEO4J_PASSWORD"] = settings.NEO4J_PASSWORD
+
+os.environ["GEMINI_API_KEY"] = settings.GOOGLE_API_KEY
+
 
 
 

@@ -223,7 +223,7 @@ if __name__ == "__main__":
 
 
 """
-python3 -m src.services.v1.NaiveRag.make_text_embeddings_batch
+python3 -m src.services.v1.NaiveRag.make_text_embeddings_google
 
 
 """

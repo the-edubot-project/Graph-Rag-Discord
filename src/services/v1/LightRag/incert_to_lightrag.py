@@ -5,7 +5,7 @@ from .get_lightrag_vllm_googleEmb import _get_rag
 from src.logging_config import get_logger
 from src import discord_models as dmodels
 
-logger = get_logger(module_name="a", DIR="A")
+logger = get_logger(module_name="incert_to_lightrag", DIR="LightRag")
 
 
 
@@ -26,16 +26,22 @@ async def main_pipeline(session : Session):
         dmodels.DiscordSummaryStatus.lightrag_status == "ready"
     ).all()
 
+    lr = await _get_rag()
+
     for r in records:
-        await lightrag.insert_to_light_rag(
-            session=session,
-            lightrag=_get_rag(),
-            summary_id=r.summary_id,
-            channel_id=r.channel_id,
-            start_time=r.start_time,
-            end_time=r.end_time,
-            summary=r.summary
-        )
+        try:
+            logger.info(f"procesando summary_id: {r.id}")
+            await lightrag.insert_to_light_rag(
+                session=session,
+                lightrag=lr,
+                summary_id=r.id,
+                channel_id=r.channel_id,
+                start_time=r.start_time,
+                end_time=r.end_time,
+                summary=r.summary
+            )
+        except Exception as e:
+            logger.error(f"Error en el summary_id {r.id}: \n\n {e}")
 
 
 
@@ -54,3 +60,8 @@ if __name__ == "__main__":
     )
 
     
+"""
+python3 -m src.services.v1.LightRag.incert_to_lightrag
+
+
+"""
