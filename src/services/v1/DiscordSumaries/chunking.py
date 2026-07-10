@@ -41,7 +41,6 @@ from sqlalchemy.orm import Session
 from src import discord_models as models
 from src.logging_config import get_logger
 from src.services.v1.DiscordSumaries import conf
-from sqlalchemy import and_
 
 logger = get_logger(module_name="chunking", DIR="DiscordSumaries")
 
@@ -384,24 +383,19 @@ def rechunk_channel_recursive(session: Session, channel_id: int) -> None:
 
 
 def rechunk_all_available_channels(session: Session):
-    # Consulta equivalente a tu SQL
-    channel_records = session.query(
-        models.DiscordChannel.id,
-        models.DiscordChannel.last_messages_at,
-        models.DiscordChannelChronologicalSummary.summary
-    ).outerjoin(
-        models.DiscordChannelChronologicalSummary,
-        models.DiscordChannelChronologicalSummary.channel_id == models.DiscordChannel.id
-    ).filter(
-        and_(
-            models.DiscordChannelChronologicalSummary.summary.is_(None),
-            models.DiscordChannel.last_messages_at.is_not(None)
-        )
-    ).all()
-    
-    # Procesar resultados (accediendo como tuplas)
-    for record in channel_records:
-        rechunk_channel(session=session, channel_id=record.id)
+    # Todos los canales que tienen mensajes (last_messages_at no nulo). NO filtramos
+    # por summary IS NULL: eso solo detectaba canales con un chunk pendiente y dejaba
+    # fuera a los canales que ya estaban resumidos pero recibieron mensajes nuevos.
+    # rechunk_channel es idempotente y retorna barato cuando no hay nada nuevo.
+    channel_records = (
+        session.query(models.DiscordChannel.id)
+        .filter(models.DiscordChannel.last_messages_at.is_not(None))
+        .all()
+    )
+
+    logger.info("Canales a evaluar: %s", len(channel_records))
+    for (channel_id,) in channel_records:
+        rechunk_channel(session=session, channel_id=channel_id)
 
 
 
