@@ -146,8 +146,11 @@ if __name__ == "__main__":
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
     from langchain_deepseek import ChatDeepSeek
+    from src.logging_config import setup_base_logging
     from src import settings
     import asyncio
+
+    setup_base_logging()
 
     engine = create_engine(settings.THE_EDUBOT_DB_CONN_STRING)
     MySession = sessionmaker(bind=engine)
