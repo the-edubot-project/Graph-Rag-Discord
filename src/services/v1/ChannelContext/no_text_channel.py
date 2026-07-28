@@ -26,9 +26,13 @@ def summary_foroum_or_category(session : Session, llm :BaseChatModel, root_id : 
         models.DiscordChannelContext,
         models.DiscordChannel.id == models.DiscordChannelContext.channel_id
     ).filter(
-        models.DiscordChannel.parent_channel_id == root_id
+        models.DiscordChannel.parent_channel_id == root_id,
     ).all()
 
+    logger.info(f"Hay {len(records)} canales de texto en el foro/categoria {root_id}")
+    if len(records) == 0:
+        print(f"hay 0 canales en este foro o categoria, saltando ...")
+        return 
     channels_summaries = []
     for r in records:
         channel_name = r[0]
@@ -49,7 +53,7 @@ def summary_foroum_or_category(session : Session, llm :BaseChatModel, root_id : 
     new_record = models.DiscordChannelContext(channel_id=root_id, summary_context=ai_message.content)
     session.add(new_record)
     session.commit()
-    session.close()
+    # session.close()
     
 
 

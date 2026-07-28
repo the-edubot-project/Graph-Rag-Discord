@@ -48,24 +48,35 @@ class PendingSummaryPrompt(TypedDict):
     channel_id : int
     
 
-def collect_all_pending_channel_summaries_prompts(session : Session, root_id : int) -> List[PendingSummaryPrompt]:
+def collect_all_pending_channel_summaries_prompts(session : Session, root_id : int, processed_ids : set = None) -> List[PendingSummaryPrompt]:
 
     all_tasks = []
+
+    # Canales que ya tienen un DiscordChannelContext generado: se saltan para no
+    # duplicar registros ni volver a gastar llamadas al LLM. Se consulta una sola
+    # vez en la llamada raiz y se propaga por la recursion.
+    if processed_ids is None:
+        processed_ids = {
+            row[0] for row in session.query(models.DiscordChannelContext.channel_id).all()
+        }
 
     channel_record = session.query(models.DiscordChannel).filter_by(id=root_id).first()
     if channel_record is None:
         print(f"el canal con id {root_id} no existe")
-        return
-    
+        return all_tasks
+
     channel_name = channel_record.name
 
     if channel_record.channel_type not in {"forum", "category"}:
-        channel_dict = collect_all_chronological_summaries_by_channel(session=session, channel_id=root_id)
-        if channel_dict is not None:
-            channel_summary = channel_dict["channel_summary"]
-            cronological_summary_lenght = channel_dict["cronological_summary_lenght"]
-            prompt = SUMMARY_TEXT_CHANNEL_PROMPT_3.format(channel_name=channel_name, channel_summary=channel_summary)
-            all_tasks.append({"prompt": prompt, "cronological_summary_lenght": cronological_summary_lenght, "channel_id": root_id})
+        if root_id in processed_ids:
+            print(f"El canal con id {root_id} ({channel_name}) ya tiene contexto, saltando ...")
+        else:
+            channel_dict = collect_all_chronological_summaries_by_channel(session=session, channel_id=root_id)
+            if channel_dict is not None:
+                channel_summary = channel_dict["channel_summary"]
+                cronological_summary_lenght = channel_dict["cronological_summary_lenght"]
+                prompt = SUMMARY_TEXT_CHANNEL_PROMPT_3.format(channel_name=channel_name, channel_summary=channel_summary)
+                all_tasks.append({"prompt": prompt, "cronological_summary_lenght": cronological_summary_lenght, "channel_id": root_id})
     else:
         print(f"El canal con id {root_id} ({channel_name}) es una categoria o un foro, saltando pero explorando hijos ...")
 
@@ -74,7 +85,7 @@ def collect_all_pending_channel_summaries_prompts(session : Session, root_id : i
     ).all()
 
     for child in child_channels:
-        child_tasks = collect_all_pending_channel_summaries_prompts(session=session, root_id=child.id)
+        child_tasks = collect_all_pending_channel_summaries_prompts(session=session, root_id=child.id, processed_ids=processed_ids)
         all_tasks.extend(child_tasks)
 
     return all_tasks
@@ -145,7 +156,6 @@ async def procces_all_peding_text_channel_summaries(session : Session, semaphore
             
             count += 1
     session.commit()
-    session.close()
 
     print(f"\n--- ✨ ¡PROCESO FINALIZADO!")
     print(f"--- 📊 Resúmenes guardados: {count}")
