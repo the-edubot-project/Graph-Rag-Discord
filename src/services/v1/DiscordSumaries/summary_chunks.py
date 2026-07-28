@@ -11,7 +11,7 @@ import asyncio
 
 
 from src.logging_config import get_logger
-logger = get_logger(module_name="summary_chunks", DIR="DiscordSumaries")
+logger = get_logger(module_name="summary_chunks", DIR="DiscordSumaries", to_db=True)
 
 
 

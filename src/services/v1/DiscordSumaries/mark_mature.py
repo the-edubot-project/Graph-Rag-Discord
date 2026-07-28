@@ -22,7 +22,7 @@ from src import discord_models as models
 from src.logging_config import get_logger
 from src.services.v1.DiscordSumaries.chunking import is_chunk_mature
 
-logger = get_logger(module_name="mark_mature", DIR="DiscordSumaries")
+logger = get_logger(module_name="mark_mature", DIR="DiscordSumaries", to_db=True)
 
 
 # def seed_mature_states(session: Session) -> int:

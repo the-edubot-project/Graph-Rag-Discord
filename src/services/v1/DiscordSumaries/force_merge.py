@@ -39,7 +39,7 @@ from sqlalchemy.orm import Session
 from src import discord_models as models
 from src.logging_config import get_logger
 
-logger = get_logger(module_name="force_merge", DIR="DiscordSumaries")
+logger = get_logger(module_name="force_merge", DIR="DiscordSumaries", to_db=True)
 
 
 def force_merge_with_previous(session: Session, chunk_id: int) -> bool:

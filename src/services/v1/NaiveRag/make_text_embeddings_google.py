@@ -38,7 +38,7 @@ from src import discord_models as models
 from src.logging_config import get_logger
 from . import conf
 
-logger = get_logger(module_name="make_text_embeddings_batch", DIR="NaiveRag")
+logger = get_logger(module_name="make_text_embeddings_batch", DIR="NaiveRag", to_db=True)
 
 
 # ──────────────────────────── helpers ────────────────────────────

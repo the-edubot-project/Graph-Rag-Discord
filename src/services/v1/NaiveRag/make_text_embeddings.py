@@ -10,7 +10,7 @@ import time
 
 
 
-logger = get_logger(module_name="make_text_embeddings", DIR="NaiveRag")
+logger = get_logger(module_name="make_text_embeddings", DIR="NaiveRag", to_db=True)
 
 
 def _approx_tokens(text: str, tokenizer: Tokenizer | None) -> int:

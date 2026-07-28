@@ -42,7 +42,7 @@ from src import discord_models as models
 from src.logging_config import get_logger
 from src.services.v1.DiscordSumaries import conf
 
-logger = get_logger(module_name="chunking", DIR="DiscordSumaries")
+logger = get_logger(module_name="chunking", DIR="DiscordSumaries", to_db=True)
 
 
 class ChunkDict(TypedDict):

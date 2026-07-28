@@ -8,7 +8,7 @@ from datetime import datetime
 
 
 from src.logging_config import get_logger
-logger = get_logger(module_name="format_db_messages.py", DIR="DiscordSumaries")
+logger = get_logger(module_name="format_db_messages.py", DIR="DiscordSumaries", to_db=True)
 
 
 def format_db_messageses(session: Session, channel_id: int, summary_from: datetime, summary_end: datetime):
