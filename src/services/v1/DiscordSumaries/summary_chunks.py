@@ -146,6 +146,7 @@ if __name__ == "__main__":
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
     from langchain_deepseek import ChatDeepSeek
+    from langchain_google_genai import ChatGoogleGenerativeAI
     from src.logging_config import setup_base_logging
     from src import settings
     import asyncio
@@ -158,8 +159,11 @@ if __name__ == "__main__":
 
     semaphore = asyncio.Semaphore(4)
     
-    model = "deepseek-v4-flash"
-    llm = ChatDeepSeek(model=model, temperature=0.3, api_key=settings.DEEPSEEK_API_KEY)
+    # model = "deepseek-v4-flash"
+    # llm = ChatDeepSeek(model=model, temperature=0.3, api_key=settings.DEEPSEEK_API_KEY)
+
+    model = "gemini-2.5-flash"
+    llm = ChatGoogleGenerativeAI(model=model, temperature=0.2, api_key=settings.GOOGLE_API_KEY)
 
 
     asyncio.run(

@@ -4,6 +4,7 @@ if __name__ == "__main__":
     from sqlalchemy.orm import sessionmaker
     from src.logging_config import setup_base_logging
     from langchain_deepseek import ChatDeepSeek
+    from langchain_google_genai import ChatGoogleGenerativeAI
 
     from .chunking import rechunk_all_available_channels
     from .mark_mature import seed_mature_status
@@ -28,8 +29,12 @@ if __name__ == "__main__":
 
 
     # Paso 3, hacer los resumenes de los chunks
-    model = "deepseek-v4-flash"
-    llm = ChatDeepSeek(model=model, temperature=0.2, api_key=settings.DEEPSEEK_API_KEY)
+    # model = "deepseek-v4-flash"
+    # llm = ChatDeepSeek(model=model, temperature=0.2, api_key=settings.DEEPSEEK_API_KEY)
+
+    model = "gemini-2.5-flash"
+    llm = ChatGoogleGenerativeAI(model=model, temperature=0.2, api_key=settings.GOOGLE_API_KEY)
+
 
     semaphore = asyncio.Semaphore(4)
 
