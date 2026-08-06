@@ -33,7 +33,9 @@ router = APIRouter(prefix="/discord-summaries", tags=["discord-summaries"])
 class SummariesRequest(BaseModel):
     """Parámetros del paso de resumen (paso 3)."""
 
-    model: str = Field(default="deepseek-v4-flash", description="Modelo LLM a usar.")
+    model: str = Field(
+        default="gemini-2.5-flash", description="Modelo LLM (Google) a usar."
+    )
     concurrency: int = Field(
         default=4, ge=1, le=32, description="Tareas LLM concurrentes (tamaño del semáforo)."
     )
@@ -55,13 +57,13 @@ class MergeResponse(BaseModel):
 
 
 def _build_llm(req: SummariesRequest):
-    """Construye el ChatModel para el paso de resumen."""
-    from langchain_deepseek import ChatDeepSeek
+    """Construye el ChatModel para el paso de resumen (Google / GOOGLE_API_KEY)."""
+    from langchain_google_genai import ChatGoogleGenerativeAI
 
-    return ChatDeepSeek(
+    return ChatGoogleGenerativeAI(
         model=req.model,
         temperature=req.temperature,
-        api_key=settings.DEEPSEEK_API_KEY,
+        api_key=settings.GOOGLE_API_KEY,
     )
 
 
