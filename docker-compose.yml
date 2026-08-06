@@ -1,5 +1,6 @@
 # Dos servicios sobre la misma imagen:
-#   api        → expone los endpoints FastAPI en el puerto 8000.
+#   api        → expone los endpoints FastAPI en el puerto API_PORT del host (8003
+#                por defecto); dentro del contenedor uvicorn siempre escucha en 8000.
 #   scheduler  → corre el pipeline completo diariamente a las 02:00 America/Bogota.
 #
 # La base de datos Postgres es EXTERNA (no se levanta aquí). Configura la conexión
@@ -11,7 +12,9 @@ services:
     image: graph-rag-discord:latest
     command: uvicorn src.api.main:app --host 0.0.0.0 --port 8000
     ports:
-      - "8000:8000"
+      # El 8000 del host ya lo usa otro servicio en el servidor. Se puede cambiar
+      # sin tocar este fichero definiendo API_PORT en .env.
+      - "${API_PORT:-8003}:8000"
     env_file: .env
     environment:
       TZ: America/Bogota
